@@ -13,6 +13,7 @@ EMPTY = -1
 
 def schelling_model(grid: np.ndarray, alpha: int, max_iter: int) -> List[np.ndarray]:
     grids = []
+    satisfactions = []
     agent_types = np.unique(grid)
     updated = True
     i = 0
@@ -21,18 +22,20 @@ def schelling_model(grid: np.ndarray, alpha: int, max_iter: int) -> List[np.ndar
             print(i)
             grids.append(grid)
             grid = np.copy(grid)
-        grid, updated = schelling_ca(grid, agent_types, alpha)
+        grid, updated, sat = schelling_ca(grid, agent_types, alpha)
+        satisfactions.append(sat)
         i += 1
     grids.append(grid)
-    return grids
+    return grids, satisfactions
 
 
 def schelling_ca(grid: np.ndarray,
                  agent_types: np.ndarray,
                  alpha: int) -> Tuple[np.ndarray, bool]:
     neigh_fractions = {a_type: compute_fractions(grid, a_type) for a_type in agent_types}
-    preferences = compute_preferences(grid, neigh_fractions, alpha)
-    return relocate_agents(np.copy(grid), preferences)
+    preferences, satisfaction = compute_preferences(grid, neigh_fractions, alpha)
+    grid, updated = relocate_agents(np.copy(grid), preferences)
+    return grid, updated, satisfaction
 
 
 def compute_fractions(grid: np.ndarray, agent_type: int) -> np.ndarray:
@@ -65,7 +68,7 @@ def compute_preferences(grid: np.ndarray,
                     if empty_neigh:
                         new_indices = random.choice(empty_neigh)
                         preferences[new_indices].append((i, j))
-    return preferences
+    return preferences, np.mean(all_si)
 
 
 def relocate_agents(grid: np.ndarray,
@@ -152,7 +155,10 @@ minority_poverty = (all_poverty_people - white_poverty_people) / all_space
 
 def experiment(n, alpha):
     initial = create_grid(n, {0: white, 1: white_poverty, 2: minority, 3: minority_poverty})
-    grids = schelling_model(initial, alpha=alpha, max_iter=3000)
+    grids, sats = schelling_model(initial, alpha=alpha, max_iter=3000)
+    plt.figure()
+    plt.plot(range(len(sats)), sats)
+    plt.savefig(f'satisfaction_{n}_{N_FEATURES}_{alpha}.png')
     visualize(grids, f'simulation_{n}_{N_FEATURES}_{alpha}.gif')
 
 
